@@ -4,29 +4,25 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/doc"
 	"go/parser"
 	"go/token"
-	"go/types"
+	"log"
 	"os"
 	"strings"
-
-	"golang.org/x/tools/go/packages"
 )
 
 var (
-	input              = flag.String("i", "", "input struct(s) comma seperated. If this is blank all structs in this package will be processed")
-	outputDir          = flag.String("o", "", "output directory default is .")
+	input              = flag.String("i", "", "input file")
+	verbose            = flag.String("v", "", "verbose")
+	outputDir          = flag.String("o", ".", "output directory default is .")
 	generationFunction = func() {}
 )
 
 func main() {
-	//flag.Parse()
-	//if *input == "" {
-	//	//if *input == "" || *outputDir == "" {
-	//	flag.Usage()
-	//	os.Exit(2)
-	//}
+	flag.Parse()
 
+	fmt.Println("---------AST---------")
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "user.go", nil, parser.ParseComments)
 	if err != nil {
@@ -35,15 +31,43 @@ func main() {
 
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch t := n.(type) {
+		case *ast.Comment:
+			fmt.Println("ast.Comment", t.Text)
 		case *ast.TypeSpec:
-			fmt.Println(t.Doc.Text())
+			fmt.Println("ast.TypeSpec")
+			fmt.Printf("\t%+v\n", t)
+		case *ast.GenDecl:
+			fmt.Printf("ast.GenDecl %+v\n", t.Doc.Text())
 		case *ast.StructType:
+			fmt.Println("ast.StructType")
+			fmt.Printf("%+v\n", t)
 			for _, field := range t.Fields.List {
-				fmt.Printf("%v\t%s\t%s\t%s\n", field.Names, field.Tag.Value, field.Comment.Text(), field.Doc.Text())
+				fmt.Printf("\t%v\t%s\t%s\t%s\n",
+					field.Names,
+					field.Tag.Value,
+					strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
+					strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
+				)
+			}
+		default:
+			if t != nil {
+				fmt.Printf("---\t%+v\n", t)
 			}
 		}
 		return true
 	})
+	fmt.Println("---------AST---------")
+
+	fmt.Println("---------GODOC---------")
+
+	err = extractStructInfo("user.go")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Print the struct information
+
+	fmt.Println("---------GODOC---------")
 
 	//fset := token.NewFileSet() // positions are relative to fset
 	//
@@ -67,118 +91,69 @@ func main() {
 	//}
 
 	// 2. Inspect package and use type checker to infer imported types
-	cfg := &packages.Config{
-		Mode:  packages.NeedTypes | packages.NeedImports,
-		Tests: false,
-		ParseFile: func(fset *token.FileSet, parseFilename string, _ []byte) (*ast.File, error) {
-			var src interface{}
-			mode := parser.ParseComments // | parser.AllErrors
-			file, err := parser.ParseFile(fset, parseFilename, src, mode)
-			if file == nil {
-				return nil, err
-			}
-			for _, decl := range file.Decls {
-				if fd, ok := decl.(*ast.FuncDecl); ok {
-					fd.Body = nil
-				}
-			}
-			return file, nil
-		},
-	}
-	pkgs, err := packages.Load(cfg, ".")
-	if err != nil {
-		failErr(fmt.Errorf("loading packages for inspection: %v", err))
-	}
-	if packages.PrintErrors(pkgs) > 0 {
-		os.Exit(1)
-	}
-	for pkgIndex, pkg := range pkgs {
-		fmt.Printf("Pakage index: %d\n", pkgIndex)
-		fmt.Printf("ID: %s\n", pkg.ID)
-		fmt.Printf("Name: %s\n", pkg.Name)
-		fmt.Printf("GOPACKAGE: %s\n", os.Getenv("GOPACKAGE"))
-		//fmt.Printf("%s\n", pkg.Types.Scope().String())
-
-		fmt.Printf("TypesInfo: %+v\n", pkg.TypesInfo)
-		//fmt.Printf("TypesInfo: %+v\n", pkg.Types.Scope())
-
-		for i, scopeName := range pkg.Types.Scope().Names() {
-			fmt.Printf("[%d] %s\n", i, scopeName)
-			obj := pkg.Types.Scope().Lookup(scopeName)
-			if obj == nil {
-				failErr(fmt.Errorf("%s not found in declared types of %s",
-					scopeName, pkg))
-			}
-			//fmt.Printf("\t%v\n", obj.Parent())
-			//fmt.Printf("\t%v\n", obj.Pkg().)
-
-			// 4. We check if it is a declared type
-			if _, ok := obj.(*types.TypeName); !ok {
-				failErr(fmt.Errorf("%v is not a named type", obj))
-			}
-
-			// 5. We expect the underlying type to be a struct
-			structType, ok := obj.Type().Underlying().(*types.Struct)
-			if !ok {
-				failErr(fmt.Errorf("type %v is not a struct", obj))
-			}
-
-			//fmt.Printf("\t%s\n", structType.String())
-			// 6. Now we can iterate through fields and access tags
-			for sI := 0; sI < structType.NumFields(); sI++ {
-				field := structType.Field(sI)
-				tagValue := structType.Tag(sI)
-				fmt.Printf("\t%s\t%s\t%s\n", field.Name(), field.Type(), tagValue)
-			}
-		}
-	}
-
-	// 3. Lookup the given source type name in the package declarations
-	//obj := pkg.Types.Scope().Lookup(sourceTypeName)
-	//if obj == nil {
-	//	failErr(fmt.Errorf("%s not found in declared types of %s",
-	//		sourceTypeName, pkg))
+	//cfg := &packages.Config{
+	//	Mode:  packages.NeedTypes | packages.NeedImports,
+	//	Tests: false,
+	//	ParseFile: func(fset *token.FileSet, parseFilename string, _ []byte) (*ast.File, error) {
+	//		var src interface{}
+	//		mode := parser.ParseComments // | parser.AllErrors
+	//		file, err := parser.ParseFile(fset, parseFilename, src, mode)
+	//		if file == nil {
+	//			return nil, err
+	//		}
+	//		for _, decl := range file.Decls {
+	//			if fd, ok := decl.(*ast.FuncDecl); ok {
+	//				fd.Body = nil
+	//			}
+	//		}
+	//		return file, nil
+	//	},
 	//}
 	//
-	//// 4. We check if it is a declared type
-	//if _, ok := obj.(*types.TypeName); !ok {
-	//	failErr(fmt.Errorf("%v is not a named type", obj))
+	//pkgs, err := packages.Load(cfg, ".")
+	//if err != nil {
+	//	failErr(fmt.Errorf("loading packages for inspection: %v", err))
 	//}
-	//// 5. We expect the underlying type to be a struct
-	//structType, ok := obj.Type().Underlying().(*types.Struct)
-	//if !ok {
-	//	failErr(fmt.Errorf("type %v is not a struct", obj))
+	//if packages.PrintErrors(pkgs) > 0 {
+	//	os.Exit(1)
 	//}
+	//for pkgIndex, pkg := range pkgs {
+	//	if *verbose == "v" {
+	//		fmt.Printf("Pakage index: %d\n", pkgIndex)
+	//		fmt.Printf("ID: %s\n", pkg.ID)
+	//		fmt.Printf("Name: %s\n", pkg.Name)
+	//		fmt.Printf("GOPACKAGE: %s\n", os.Getenv("GOPACKAGE"))
+	//		fmt.Printf("TypesInfo: %+v\n", pkg.TypesInfo)
+	//	}
 	//
-	//// 6. Now we can iterate through fields and access tags
-	//for i := 0; i < structType.NumFields(); i++ {
-	//	field := structType.Field(i)
-	//	tagValue := structType.Tag(i)
-	//	fmt.Println(field.Name(), tagValue, field.Type())
+	//	for i, scopeName := range pkg.Types.Scope().Names() {
+	//		fmt.Printf("[%d] %s\n", i, scopeName)
+	//		obj := pkg.Types.Scope().Lookup(scopeName)
+	//		if obj == nil {
+	//			failErr(fmt.Errorf("%s not found in declared types of %s",
+	//				scopeName, pkg))
+	//		}
+	//
+	//		// We check if it is a declared type
+	//		if _, ok := obj.(*types.TypeName); !ok {
+	//			failErr(fmt.Errorf("%v is not a named type", obj))
+	//		}
+	//
+	//		// We expect the underlying type to be a struct
+	//		structType, ok := obj.Type().Underlying().(*types.Struct)
+	//		if !ok {
+	//			failErr(fmt.Errorf("type %v is not a struct", obj))
+	//		}
+	//
+	//		for sI := 0; sI < structType.NumFields(); sI++ {
+	//			field := structType.Field(sI)
+	//			tagValue := structType.Tag(sI)
+	//			if *verbose == "v" {
+	//				fmt.Printf("\t%s\t%s\t%s\n", field.Name(), field.Type(), tagValue)
+	//			}
+	//		}
+	//	}
 	//}
-}
-
-func loadPackage() *packages.Package {
-	cfg := &packages.Config{Mode: packages.NeedTypes | packages.NeedImports}
-	pkgs, err := packages.Load(cfg, ".")
-	if err != nil {
-		failErr(fmt.Errorf("loading packages for inspection: %v", err))
-	}
-	if packages.PrintErrors(pkgs) > 0 {
-		os.Exit(1)
-	}
-
-	return pkgs[0]
-}
-
-func splitSourceType(sourceType string) (string, string) {
-	idx := strings.LastIndexByte(sourceType, '.')
-	if idx == -1 {
-		failErr(fmt.Errorf(`expected qualified type as "pkg/path.MyType"`))
-	}
-	sourceTypePackage := sourceType[0:idx]
-	sourceTypeName := sourceType[idx+1:]
-	return sourceTypePackage, sourceTypeName
 }
 
 func failErr(err error) {
@@ -186,4 +161,66 @@ func failErr(err error) {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func extractStructInfo(filename string) error {
+	fset := token.NewFileSet()
+
+	file, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	// Extract the package documentation
+	pkg, err := doc.NewFromFiles(fset, []*ast.File{file}, "")
+
+	// Extract the struct information
+	var structs []*ast.TypeSpec
+	for _, typ := range pkg.Types {
+		fmt.Println("Type:", typ.Name)
+		fmt.Println("Doc:", strings.Replace(typ.Doc, "\n", "\\n", -1))
+
+		if typ.Decl != nil && typ.Decl.Specs != nil {
+			if spec, ok := typ.Decl.Specs[0].(*ast.TypeSpec); ok {
+				if _, ok := spec.Type.(*ast.StructType); ok {
+					//structs = append(structs, spec)
+					fmt.Println("Struct:", spec.Name)
+					fmt.Println("Comments:", spec.Comment.Text())
+					fmt.Println("Fields:")
+					for _, field := range spec.Type.(*ast.StructType).Fields.List {
+						fmt.Println("-",
+							field.Names[0],
+							field.Type,
+							field.Tag.Value,
+							strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
+							strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
+						)
+					}
+				}
+			}
+		}
+
+	}
+
+	fmt.Println("Package: ", pkg.Name)
+	fmt.Println("Package Doc: ", pkg.Doc)
+
+	for _, s := range structs {
+		fmt.Println("Struct:", s.Name)
+		fmt.Println("Doc:", s.Doc.Text())
+		fmt.Println("Comments:", s.Comment.Text())
+		fmt.Println("Fields:")
+		for _, field := range s.Type.(*ast.StructType).Fields.List {
+			fmt.Println("-",
+				field.Names[0],
+				field.Type,
+				field.Tag.Value,
+				strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
+				strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
+			)
+		}
+	}
+
+	// Extract the package documentation
+	return nil
 }
