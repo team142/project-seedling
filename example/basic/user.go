@@ -11,9 +11,11 @@ package basic
 type User struct {
 	//Hello there
 	//@IGNORE
-	Id        int    `json:"id,omitempty" fun-gen:"get" api-gen:"get,post,delete" attributes:"pk"` // Id
-	FirstName string `json:"first_name,omitempty"`                                                 // FirstName fn
-	LastName  string `json:"last_name,omitempty"`                                                  // LastName ln
+	Id int `json:"id,omitempty" fun-gen:"get" api-gen:"get,post,delete" attributes:"pk"` // Id
+	//@API
+	FirstName string `json:"first_name,omitempty"` // FirstName fn
+	//@API
+	LastName string `json:"last_name,omitempty"` // LastName ln
 }
 
 // UserIgnored should be ignored during the generation
