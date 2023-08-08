@@ -1,6 +1,12 @@
 package end
 
 // User is a basic user of the system
+// @DiscoverFunction
+// @BasePath /api
+// @Version
+// #GET AUTH ROLE
+// #POST AUTH ROLE
+// #DELETE AUTH ROLE
 type User struct { // @NOOOO
 	Id        int        `json:"id,omitempty"`         // Id is the PK
 	FirstName string     `json:"first_name,omitempty"` // FirstName fn
@@ -9,6 +15,7 @@ type User struct { // @NOOOO
 }
 
 // Language is a basic user of the system
+// @BasePath /user/:id
 type Language struct {
 	Id       int    `json:"id,omitempty"`
 	Language string `json:"language,omitempty"`

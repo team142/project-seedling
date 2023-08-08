@@ -1,92 +1,49 @@
 package main
 
 import (
+	"code-gen/pkg/generator"
+	"code-gen/pkg/module"
 	"flag"
-	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
-	"log"
-	"os"
-	"reflect"
-	"strings"
 )
 
 var (
-	input              = flag.String("i", "", "input file")
-	input              = flag.String("i", "", "input file, this needs to be passed. If you pass \".\" the whole package will be processed")
-	structs            = flag.String("s", "", "specify structs to generate (comma seperated), the default is every struct in the file")
-	verbose            = flag.String("v", "", "verbose")
-	outputDir          = flag.String("o", ".", "output directory default is .")
-	api                = flag.String("api", "fiber", "what is the api framework you want to use")
-	version            = flag.String("version", "", "version pass a version for the generated files, this will put the files into a version folder. It will also be used in the API version")
-	outputDir          = flag.String("o", ".", "output directory default is \".\". This is used to control the generated files. Pass \"\" if you dont want files to be generated")
-	generationFunction = func() {}
+	input     = flag.String("i", "", "input file")
+	structs   = flag.String("s", "", "specify structs to generate (comma seperated), the default is every struct in the file")
+	verbose   = flag.String("v", "", "verbose")
+	api       = flag.String("api", "fiber", "what is the api framework you want to use")
+	version   = flag.String("version", "", "version pass a version for the generated files, this will put the files into a version folder. It will also be used in the API version")
+	outputDir = flag.String("o", ".", "output directory default is \".\". This is used to control the generated files. Pass \"\" if you dont want files to be generated")
 )
 
 func main() {
 	flag.Parse()
 
-	fmt.Println("---------AST---------")
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "user.go", nil, parser.ParseComments)
-	if err != nil {
-		panic(err)
+	fileName := "user.go"
+
+	conf := &module.Config{
+		Version:          "V1",
+		Structs:          nil,
+		Auth:             false,
+		FileName:         fileName,
+		DiscoverFunction: generator.FiberGenerator,
+		CreateHandler:    true,
+		CreateRouter:     true,
+		CreateMiddleware: true,
+		WriteToDisk:      true,
+		OverrideFiles:    true,
 	}
 
-	ast.Inspect(f, func(n ast.Node) bool {
-		switch t := n.(type) {
-		//case *ast.Comment:
-		//	fmt.Println("ast.Comment", t.Text)
-		case *ast.TypeSpec:
-			fmt.Println("ast.TypeSpec")
-			fmt.Printf("\t%+v\n", t)
-			fmt.Println("Struct:", t.Name)
-			fmt.Println("Doc:", t.Doc.Text())
-			fmt.Println("Comments:", t.Comment.Text())
-			fmt.Println("Fields:")
-			for _, field := range t.Type.(*ast.StructType).Fields.List {
-				fmt.Println("-",
-					field.Names[0],
-					field.Type,
-					field.Tag.Value,
-					strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
-					strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
-				)
-			}
-
-			//case *ast.GenDecl:
-			//	fmt.Printf("ast.GenDecl %+v\n", t.Doc.Text())
-			//case *ast.StructType:
-			//	fmt.Println("ast.StructType")
-			//	fmt.Printf("%+v\n", t)
-			//	for _, field := range t.Fields.List {
-			//		fmt.Printf("\t%v\t%s\t%s\t%s\n",
-			//			field.Names,
-			//			field.Tag.Value,
-			//			strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
-			//			strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
-			//		)
-			//	}
-			//default:
-			//	if t != nil {
-			//		fmt.Printf("---\t%+v\n", t)
-			//	}
-		}
-		return true
-	})
-	fmt.Println("---------AST---------")
-
-	fmt.Println("---------GODOC---------")
-
-	err = extractStructInfo("user.go")
+	err := conf.Process()
 	if err != nil {
-		log.Fatal(err)
+		return
 	}
+
+	//err = extractStructInfo("user.go")
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
 
 	// Print the struct information
-
-	fmt.Println("---------GODOC---------")
 
 	//fset := token.NewFileSet() // positions are relative to fset
 	//
@@ -173,11 +130,4 @@ func main() {
 	//		}
 	//	}
 	//}
-}
-
-func failErr(err error) {
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
 }

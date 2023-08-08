@@ -2,7 +2,7 @@
 package basic
 
 // User is a basic user of the system
-// @Generate
+// @DiscoverFunction
 // @BasePath /api
 // @Version
 // #GET AUTH
@@ -10,8 +10,8 @@ package basic
 // #DELETE AUTH
 type User struct {
 	//Hello there
-	//@IGNORE
-	Id int `json:"id,omitempty" fun-gen:"get" api-gen:"get,post,delete" attributes:"pk"` // Id
+	//#PK
+	Id int `json:"id,omitempty" fun-gen:"get" api-gen:"get,post,delete" attributes:"pk"` //#PK
 	//@API
 	FirstName string `json:"first_name,omitempty"` // FirstName fn
 	//@API

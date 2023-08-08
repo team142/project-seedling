@@ -25,6 +25,7 @@ func (u *User) GetMultipleUsers(db *sql.DB, params map[string]string) (error, []
 		if err != nil {
 			return err, nil, 0, 0, 0
 		}
+		return nil, nil, limit, 0, 0
 	}
 	return errors.New("implement me"), nil, 0, 0, 0
 }
