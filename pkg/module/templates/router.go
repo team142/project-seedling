@@ -18,13 +18,13 @@ const (
 )
 
 func {{.Struct.Name}}Routes(api fiber.Router, db *sql.DB) {
-	api.Options("/{{.Struct.APIName}}",{{ if eq .Auth true }}
+	api.Options("/{{.Struct.APIName}}",{{ if .Auth }}
 		middleware.AuthMiddleware(db, nil),{{end}}
 		handler.{{.Struct.Name}}Options(),
 	){{if eq .PrimaryKeyCount 1}}
 	api.Get("/{{.Struct.APIName}}/:id",{{ if eq .Auth true }}
 		middleware.AuthMiddleware(db, []string{ RoleRead{{.Struct.Name}} }),{{end}}
-		handler.Get{{.Struct.Name}}ById(db),
+		handler.Get{{.Struct.Name}}ByPrimaryKey(db),
 	){{end}}
 	api.Get("/{{.Struct.APIName}}",{{ if eq .Auth true }}
 		middleware.AuthMiddleware(db, []string{ RoleRead{{.Struct.Name}} }),{{end}}
@@ -52,8 +52,7 @@ func {{.Struct.Name}}Routes(api fiber.Router, db *sql.DB) {
 	){{if eq .PrimaryKeyCount 1}}
 	api.Delete("/{{.Struct.APIName}}/:id",{{ if eq .Auth true }}
 		middleware.AuthMiddleware(db, []string{ RoleDelete{{.Struct.Name}} }),{{end}}
-		middleware.Verify{{.Struct.Name}}Body(false), 
-		handler.Delete{{.Struct.Name}}ById(db),
+		handler.Delete{{.Struct.Name}}ByPrimaryKey(db),
 	){{end}}
 	api.Trace("/{{.Struct.APIName}}",{{ if eq .Auth true }}
 		middleware.AuthMiddleware(db, nil),{{end}}  

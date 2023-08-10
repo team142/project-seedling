@@ -122,7 +122,7 @@ func GetMultiple{{$struct.Name}}s(db *sql.DB) fiber.Handler {
 
 {{if eq .PrimaryKeyCount 1}}
 {{ range .PrimaryKeys }}
-// Get{{$struct.Name}}ById get a single {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} by the {{$backtick}}{{$struct.Package}}.{{$struct.Name}}.{{.Name}}{{$backtick}}
+// Get{{$struct.Name}}ByPrimaryKey get a single {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} by the {{$backtick}}{{$struct.Package}}.{{$struct.Name}}.{{.Name}}{{$backtick}}
 // @Summary          This will get a single {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} filtering using the {{$backtick}}{{$struct.Name}}.{{.Name}}{{$backtick}}
 // @Description      Get a single {{$struct.Name}}
 // @Tags             {{$struct.Name}}
@@ -134,26 +134,24 @@ func GetMultiple{{$struct.Name}}s(db *sql.DB) fiber.Handler {
 // @Failure          401
 // @Failure          403
 // @Failure          500  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}
-// @Router           {{$coreStruct.APIPath}}{{$struct.APIName}}/{{ printf "{%s}" $struct.APIName}} [get]
-// @Param         	 {{$struct.APIName}}		path      {{.Type}}  true  "{{.Name}}"
-func Get{{$struct.Name}}ById(db *sql.DB) fiber.Handler {
+// @Router           {{$coreStruct.APIPath}}{{$struct.APIName}}/{{ printf "{%s}" .APIName}} [get]
+// @Param         	 {{.APIName}}		path      {{.Type}}  true  "{{.Name}}"
+func Get{{$struct.Name}}ByPrimaryKey(db *sql.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var err error
-		var {{$struct.VarName}} {{$struct.Name}}Interface
-		u := &{{$struct.Package}}.{{$struct.Name}}{}
-		{{$struct.VarName}} = u
+		{{$struct.VarName}} := get{{$struct.Name}}(c)
 
 		var {{$struct.VarName}}s []{{$struct.Package}}.{{$struct.Name}}
 		if err, {{$struct.VarName}}s, _, _, _ = {{$struct.VarName}}.GetMultiple(
 			db,
-			map[string]string{"Id": c.Params("Id", "")},
+			map[string]string{"{{.APIName}}": c.Params("id", "")},
 		); err != nil {
 			if strings.Contains(err.Error(), "not found") {
 				c.Status(fiber.StatusNoContent)
 				return c.JSON(
 					presenter.DataError{
 						Message: "not found",
-						Data:    u,
+						Data:    {{$struct.VarName}},
 						Error:   err,
 					},
 				)
@@ -163,7 +161,7 @@ func Get{{$struct.Name}}ById(db *sql.DB) fiber.Handler {
 			return c.JSON(
 				presenter.DataError{
 					Message: "error retrieving requested {{$struct.Name}}",
-					Data:    u,
+					Data:    {{$struct.VarName}},
 					Error:   err,
 				},
 			)
@@ -301,7 +299,8 @@ func Delete{{$struct.Name}}(db *sql.DB) fiber.Handler {
 	}
 }
 {{if eq .PrimaryKeyCount 1}}
-// Delete{{$struct.Name}}ById deletes a {{$struct.APIName}}
+{{ range .PrimaryKeys }}
+// Delete{{$struct.Name}}ByPrimaryKey deletes a {{$struct.APIName}}
 // @Summary          DELETE a {{$struct.APIName}}
 // @Description      This will delete {{$struct.Name}} or replace a representation of the {{$struct.Name}} with the request payload.
 // @Tags             {{$struct.Name}}
@@ -311,17 +310,29 @@ func Delete{{$struct.Name}}(db *sql.DB) fiber.Handler {
 // @Failure          400  {object} presenter.DataError{data=string}
 // @Failure          401
 // @Failure          403
-// @Failure          406  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}{{ range .PrimaryKeys }}
-// @Router           {{$coreStruct.APIPath}}{{$struct.APIName}}/{{printf "{%s}" $struct.APIName}} [delete]
-// @Param            {{$struct.APIName}} 			query      {{.Type}}     	false  "{{.Name}}"{{ end }}
-func Delete{{$struct.Name}}ById(db *sql.DB) fiber.Handler {
+// @Failure          406  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}
+// @Router           {{$coreStruct.APIPath}}{{$struct.APIName}}/{{printf "{%s}" .APIName}} [delete]
+// @Param            {{.APIName}} 			query      {{.Type}}     	false  "{{.Name}}"
+func Delete{{$struct.Name}}ByPrimaryKey(db *sql.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var err error
-		{{$struct.VarName}} := get{{$struct.Name}}(c)
-
+		var {{$struct.VarName}} {{$struct.Name}}Interface
+		{{$struct.VarName}}Core := &{{$struct.Package}}.{{$struct.Name}}{}
+		{{if eq .Type "int"}}
 		// This will only do this if the PK is an INT
-		pk, errAtoi := strconv.Atoi(c.Params("Id", ""))
-		if errAtoi != nil {
+		{{$struct.VarName}}Core.{{.Name}}, err = strconv.Atoi(c.Params("id", ""))
+		if err != nil {
+			c.Status(fiber.StatusBadRequest)
+			return c.JSON(
+				presenter.DataError{
+					Message: "bad id",
+					Error:   err,
+				},
+			)
+		}{{else}}
+		// This will only be done if the primary key is NOT int
+		{{$struct.VarName}}Core.{{.Name}} := c.Params("id", "")
+		if {{$struct.VarName}}.{{.Name}} == "" {
 			c.Status(fiber.StatusBadRequest)
 			return c.JSON(
 				presenter.DataError{
@@ -330,9 +341,8 @@ func Delete{{$struct.Name}}ById(db *sql.DB) fiber.Handler {
 				},
 			)
 		}
-
-		//TODO: Need to set the structs primary keys 
-
+		{{end}}
+		{{$struct.VarName}} = {{$struct.VarName}}Core
 		err = {{$struct.VarName}}.Delete(db)
 		if err != nil {
 			c.Status(fiber.StatusInternalServerError)
@@ -349,6 +359,7 @@ func Delete{{$struct.Name}}ById(db *sql.DB) fiber.Handler {
 		return c.Send(nil)
 	}
 }
+{{ end }}
 {{ end }}
 
 // {{$struct.Name}}Options
