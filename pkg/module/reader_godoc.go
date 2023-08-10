@@ -6,6 +6,7 @@ import (
 	"go/doc"
 	"go/parser"
 	"go/token"
+	"reflect"
 	"strings"
 )
 
@@ -50,25 +51,26 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 			//}
 			if spec, ok := typ.Decl.Specs[0].(*ast.TypeSpec); ok {
 				if s, ok := spec.Type.(*ast.StructType); ok {
-					ts := TypeSpec{
-						TypeSpec:        s,
-						Fields:          make([]Field, 0),
-						Ignored:         strings.Contains(strings.ToLower(typ.Doc), "@ignore"),
-						APIPath:         config.GetAPIPath(config.APIPath),
-						Module:          pkg.ImportPath,
-						PrimaryKeys:     make([]Field, 0),
-						PrimaryKeyCount: 0,
-						Struct: StructSpec{
-							APIName:              toSnakeCase(spec.Name.String()),
-							Name:                 toPascalCase(spec.Name.String()),
-							VarName:              toCamelCase(spec.Name.String()),
-							Package:              pkg.Name,
-							PackageImportPath:    packageImportPath,
-							MiddlewareImportPath: middlewareImportPath,
-							PresenterImportPath:  presenterImportPath,
-							HandlerImportPath:    handlerImportPath,
-						},
+					ts := config.GetDefaultTypeSpec()
+
+					ts.TypeSpec = s
+					ts.Fields = make([]Field, 0)
+					ts.Ignored = strings.Contains(strings.ToLower(typ.Doc), "#ignore")
+					ts.APIPath = config.GetAPIPath(config.APIPath)
+					ts.Module = pkg.ImportPath
+					ts.PrimaryKeys = make([]Field, 0)
+					ts.PrimaryKeyCount = 0
+					ts.Struct = StructSpec{
+						APIName:              toSnakeCase(spec.Name.String()),
+						Name:                 toPascalCase(spec.Name.String()),
+						VarName:              toCamelCase(spec.Name.String()),
+						Package:              pkg.Name,
+						PackageImportPath:    packageImportPath,
+						MiddlewareImportPath: middlewareImportPath,
+						PresenterImportPath:  presenterImportPath,
+						HandlerImportPath:    handlerImportPath,
 					}
+					ts.Auth = commentContains(spec.Comment.Text(), "#noauth")
 
 					//structs = append(structs, spec)
 					fmt.Println("Struct:", spec.Name)
@@ -80,29 +82,31 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 							fn = field.Names[0].Name
 						}
 
-						fmt.Println("-----------------------------")
-						fmt.Println(field.Doc.Text(), strings.Contains(strings.ToLower(field.Doc.Text()), "#pk"))
-						fmt.Println("-----------------------------")
-
 						tempField := Field{
 							Field: field,
 							Name:  toPascalCase(fn),
 							// TODO: read the tags
 							APIName:    toSnakeCase(fn),
 							VarName:    toCamelCase(fn),
-							PrimaryKey: strings.Contains(strings.ToLower(field.Doc.Text()), "#pk"),
+							PrimaryKey: commentContains(field.Doc.Text(), "#pk\n"),
+							Tag:        reflect.StructTag(strings.Replace(field.Tag.Value, "`", "", -1)),
 						}
 
-						tempField.Type = fmt.Sprint(field.Type)
+						fmt.Println("-----------------------------", fn)
+						fmt.Println(field.Doc.Text())
+						fmt.Println("\t- Tag: ", tempField.Tag)
 
-						ts.Fields = append(ts.Fields, tempField)
-
-						if tempField.PrimaryKey {
-							ts.PrimaryKeys = append(ts.PrimaryKeys, tempField)
-							ts.PrimaryKeyCount++
+						if val, ok := tempField.Tag.Lookup("json"); ok {
+							if val == "-" {
+								tempField.Ignore = true
+							}
+							fmt.Println("\t\t- json: ", val)
+						} else {
+							fmt.Println("\t\t-", val, ok, tempField.Tag)
 						}
 
-						fmt.Printf("- %s \n", field.Type)
+						fmt.Printf("\t- Ignored: %v \n", tempField.Ignore)
+						fmt.Printf("\t- %s \n", field.Type)
 						fmt.Println("\t-",
 							field.Names[0],
 							field.Type,
@@ -110,6 +114,19 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 							strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
 							strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
 						)
+
+						fmt.Println("-----------------------------")
+
+						tempField.Type = fmt.Sprint(field.Type)
+
+						if !tempField.Ignore {
+							ts.Fields = append(ts.Fields, tempField)
+						}
+
+						if tempField.PrimaryKey {
+							ts.PrimaryKeys = append(ts.PrimaryKeys, tempField)
+							ts.PrimaryKeyCount++
+						}
 
 					}
 
@@ -149,6 +166,10 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 	return nil, types
 }
 
-func extractStructInfo(filename string) error {
-	return nil
+func getComment(doc, lookingFor string) string {
+	return ""
+}
+
+func commentContains(doc, lookingFor string) bool {
+	return strings.Contains(strings.ToLower(doc), strings.ToLower(lookingFor))
 }
