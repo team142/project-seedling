@@ -67,9 +67,7 @@ type {{$struct.Name}}PrimaryKeys struct { {{ range .PrimaryKeys }}
 // @Param            {{.APIName}} 			query      {{.Type}}     	false  "{{.Name}}"{{ end }}
 func GetMultiple{{$struct.Name}}s(db *sql.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		var {{$struct.VarName}} {{$struct.Name}}Interface
-		u := &{{$struct.Package}}.{{$struct.Name}}{}
-		{{$struct.VarName}} = u
+		{{$struct.VarName}} := get{{$struct.Name}}(c)
 
 		// STANDARD
 		var err error
