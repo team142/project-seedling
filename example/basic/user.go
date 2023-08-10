@@ -5,20 +5,16 @@ package basic
 // @DiscoverFunction
 // @BasePath /api
 // @Version
-// #GET AUTH
-// #POST AUTH
-// #DELETE AUTH
 type User struct {
 	//Hello there
 	//#PK
-	Id int `json:"id,omitempty" fun-gen:"get" api-gen:"get,post,delete" attributes:"pk"` //#PK
-	//@API
+	Id        int    `json:"id,omitempty"`
 	FirstName string `json:"first_name,omitempty"` // FirstName fn
-	//@API
-	LastName string `json:"last_name,omitempty"` // LastName ln
+	LastName  string `json:"last_name,omitempty"`  // LastName ln
+	CreatedAt string `json:"-"`
 }
 
 // UserIgnored should be ignored during the generation
-// @IGNORE
+// #IGNORE
 type UserIgnored struct {
 }
