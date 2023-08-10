@@ -314,32 +314,34 @@ func (c *Config) CreateAll(defs []TypeSpec) error {
 		// We do not want to write the file. So we are just going to print the content
 		fmt.Println(file.Content)
 	}
-
-	ts.Struct.APIName = "middleware"
-	ts.Package = "middleware"
-	file, err = ts.Generate(c.AuthMiddlewareTemplate,
-		c.getFullPath(
-			c.OutputDir,
-			c.Directories.MiddlewareDirectory,
-		),
-		"middleware.auth.go",
-	)
-	if err != nil {
-		return err
-	}
-	if c.WriteToDisk {
-		err := os.WriteFile(
-			file.Path+file.Name,
-			[]byte(file.Content),
-			c.OutputDirPermissions,
+	// We only want to create the auth if Auth is set
+	if c.Auth {
+		ts.Struct.APIName = "middleware"
+		ts.Package = "middleware"
+		file, err = ts.Generate(c.AuthMiddlewareTemplate,
+			c.getFullPath(
+				c.OutputDir,
+				c.Directories.MiddlewareDirectory,
+			),
+			"middleware.auth.go",
 		)
 		if err != nil {
-			fmt.Println("Processing File Error:", file.Path, file.Name, err)
 			return err
 		}
-	} else {
-		// We do not want to write the file. So we are just going to print the content
-		fmt.Println(file.Content)
+		if c.WriteToDisk {
+			err := os.WriteFile(
+				file.Path+file.Name,
+				[]byte(file.Content),
+				c.OutputDirPermissions,
+			)
+			if err != nil {
+				fmt.Println("Processing File Error:", file.Path, file.Name, err)
+				return err
+			}
+		} else {
+			// We do not want to write the file. So we are just going to print the content
+			fmt.Println(file.Content)
+		}
 	}
 
 	// We are going to process every TypeSpec
