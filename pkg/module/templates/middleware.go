@@ -92,7 +92,10 @@ import (
 
 // Verify{{.Struct.Name}}Body will verify if the body passed is valid, setting "{{.Struct.Name}}" in fiber Locals to the {{.Struct.APIName}}
 // This should only be used where a BODY with a single {{.Struct.Name}} is required
-func Verify{{.Struct.Name}}Body() fiber.Handler {
+func Verify{{.Struct.Name}}Body(multi bool) fiber.Handler {
+	if multi {
+		return VerifyMultiple{{.Struct.Name}}Body()
+	}
 	return func(c *fiber.Ctx) error {
 		{{.Struct.VarName}} := &{{.Struct.Package}}.{{.Struct.Name}}{}
 		err := c.BodyParser({{.Struct.VarName}})
