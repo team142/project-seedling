@@ -86,6 +86,9 @@ func (c *Config) FilepathSeparator() string {
 // validateFinalCharacter(".","/") == "./"
 // validateFinalCharacter("","/") == "/"
 func validateFinalCharacter(base, sep string) string {
+	if base == "" {
+		return sep
+	}
 	if base[len(base)-1:] != sep {
 		return base + sep
 	}
@@ -115,22 +118,33 @@ func (c *Config) GetAPIPath(base string) string {
 	if c.APIPath == "" {
 		c.APIPath = sep
 	}
-	c.APIPath = validateFinalCharacter(c.APIPath, sep)
-
-	if base == "" {
-		base = c.APIPath
-	} else {
-		base = c.APIPath + base
-	}
-
-	// We make sure base ends with the separator
-	base = validateFinalCharacter(base, sep)
 
 	if c.Version == "" {
-		return base
+		return getAPIPath(c.APIPath, base, sep)
 	} else {
-		return fmt.Sprintf("%s%s%s", base, strings.ToLower(c.Version), sep)
+		apiPath := c.APIPath
+		if !strings.Contains(strings.ToLower(c.APIPath), strings.ToLower(c.Version)) {
+			apiPath = getAPIPath(apiPath, strings.ToLower(c.Version), sep)
+		}
+		return getAPIPath(apiPath, base, sep)
 	}
+}
+
+func getAPIPath(start, end, sep string) string {
+	//fmt.Println("getAPIPath", start, end, sep)
+	if start == "" {
+		return sep
+	}
+	if start == sep {
+		return start + end
+	}
+	if start[:1] != sep {
+		start = sep + start
+	}
+	if end == "" {
+		return start
+	}
+	return start + sep + end
 }
 
 // getFullFilePath will return the full file path
@@ -266,6 +280,7 @@ func (c *Config) GetDefaultTypeSpec() TypeSpec {
 		Struct:           StructSpec{},
 		Module:           c.Directories.Module,
 		IntermediaryPath: c.Directories.IntermediaryPath,
+		Auth:             c.Auth,
 	}
 }
 

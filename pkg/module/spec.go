@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go/ast"
+	"reflect"
 	"text/template"
 )
 
@@ -44,6 +45,7 @@ type TypeSpec struct {
 	Package          string // This is the package
 	IntermediaryPath string // This is the path between the Module and the Package Path
 
+	Auth bool
 }
 
 type Field struct {
@@ -54,6 +56,8 @@ type Field struct {
 	VarName    string // camelCase
 	Type       string // We may want to change this to a token.Token
 	PrimaryKey bool
+	Ignore     bool              // Do we ignore this field
+	Tag        reflect.StructTag // We want to work with the tags
 }
 
 // Rule
