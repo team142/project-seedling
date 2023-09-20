@@ -7,6 +7,34 @@ This generator is used to get a project up to speed as soon as possible with as 
 The generation is opinionated, but trying to keep as little lock in as possible.
 You can use the generator to produce a single executable or the functions for a microservice architecture.
 
+# Quick Start
+```golang
+//go:generate go run github.com/team142/project-seedling -i user.go -version v1 -auth
+package basic
+
+// User is a basic user structure for the system
+// @BasePath /api
+// @Version
+// #GET AUTH
+// #POST AUTH
+// #DELETE AUTH
+type User struct {
+	//@API
+	//#PK
+	Id int `json:"id,omitempty"`
+	//@API
+	FirstName string `json:"first_name,omitempty"`
+	//@API
+	LastName string `json:"last_name,omitempty"`
+	//#Ignore
+	CreatedAt string `json:"-"`
+}
+```
+
+`go generate ./...`
+
+# Goals
+
 ## The full `planned` ecosystem:
 1. [ ] DB to YAML
 2. [ ] YAML to struct
@@ -17,7 +45,6 @@ You can use the generator to produce a single executable or the functions for a 
 5. [ ] API Client - This will generate a **SDK** to use the API's
    1. GO
 
-# Goals
 
 ##  Ecosystem Goals
 
@@ -61,6 +88,3 @@ A More complex
 ```
 
 # Example
-
-
-
