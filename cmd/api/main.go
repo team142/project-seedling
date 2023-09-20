@@ -23,7 +23,7 @@ func main() {
 	conf := &module.Config{
 		Version:          "V1",
 		Structs:          nil,
-		Auth:             false,
+		Auth:             true,
 		FileName:         fileName,
 		DiscoverFunction: generator.FiberGenerator,
 		CreateHandler:    true,
