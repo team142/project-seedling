@@ -1,0 +1,50 @@
+package middleware
+
+import (
+	"github.com/gofiber/fiber/v2"
+)
+
+// Verify{{.Struct.Name}}Body will verify if the body passed is valid, setting "{{.Struct.Name}}" in fiber Locals to the {{.Struct.APIName}}
+// This should only be used where a BODY with a single {{.Struct.Name}} is required
+func Verify{{.Struct.Name}}Body(multi bool) fiber.Handler {
+	if multi {
+		return VerifyMultiple{{.Struct.Name}}Body()
+	}
+	return func(c *fiber.Ctx) error {
+		{{.Struct.VarName}} := &{{.Struct.Package}}.{{.Struct.Name}}{}
+		err := c.BodyParser({{.Struct.VarName}})
+		if err != nil {
+			c.Status(fiber.StatusBadRequest)
+			return c.JSON(
+				presenter.DataError{
+					Message: "bad body: invalid {{.Struct.Name}}",
+					Data:    string(c.Body()),
+					Error:   err,
+				},
+			)
+		}
+		c.Locals("{{.Struct.Name}}", {{.Struct.VarName}})
+		return c.Next()
+	}
+}
+
+// VerifyMultiple{{.Struct.Name}}Body will verify if the body passed is valid, setting "{{.Struct.Name}}" in fiber Locals to the {{.Struct.APIName}}
+// This should only be used where a BODY with a single {{.Struct.Name}} is required
+func VerifyMultiple{{.Struct.Name}}Body() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		{{.Struct.VarName}}Multi := make([]{{.Struct.Package}}.{{.Struct.Name}},0)
+		err := c.BodyParser({{.Struct.VarName}}Multi)
+		if err != nil {
+			c.Status(fiber.StatusBadRequest)
+			return c.JSON(
+				presenter.DataError{
+					Message: "bad body: invalid array of {{.Struct.Name}}",
+					Data:    string(c.Body()),
+					Error:   err,
+				},
+			)
+		}
+		c.Locals("{{.Struct.Name}}_multi", {{.Struct.VarName}}Multi)
+		return c.Next()
+	}
+}
