@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/ast"
 	"reflect"
+	"strings"
 	"text/template"
 )
 
@@ -13,6 +14,10 @@ var (
 	ErrorNoTemplate     = errors.New("no template")
 	ErrorNoTemplateFile = errors.New("no template file")
 	ErrorNoStructName   = errors.New("no struct name")
+)
+
+const (
+	TemplateSingular = "singular"
 )
 
 type StructSpec struct {
@@ -76,6 +81,26 @@ func (ts *TypeSpec) GetAllFiles(config *Config) ([]*File, error) {
 	ts.Module = config.Directories.Module
 	ts.Version = config.Version
 	ts.APIPath = config.APIPath
+
+	// If we are creating everything from a template
+	if config.CreateFromTemplate {
+		for _, t := range config.Template {
+			if !strings.Contains(strings.ToLower(t.Name), TemplateSingular) {
+				ts.Package = t.Package
+				generate, err := ts.Generate(
+					t.Content,
+					t.OutPath,
+					fmt.Sprintf("%s.%s", ts.Struct.APIName, t.Name),
+				)
+				if err != nil {
+					return nil, err
+				}
+				files = append(files, generate)
+			}
+		}
+		return files, nil
+	}
+
 	//fmt.Printf("%+v", config)
 	// Generate middleware
 	if config.CreateMiddleware {

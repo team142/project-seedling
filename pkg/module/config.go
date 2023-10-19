@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -50,27 +51,27 @@ type Config struct {
 	Auth                         bool              // Are we going to do auth
 	FileName                     string            // This is the filename we want to process
 	DiscoverFunction             DiscoveryFunction // This is the function which will be called to get the information from the structs
-	CreateRouter                 bool              // Do we want to create the router. This should only be set to false in specific cases
-	CreateHandler                bool              // Do we want to create the handler. This should only be set to false in specific cases
-	CreateMiddleware             bool              // Do we want to create the middleware ( struct validation and auth ). This should only be set to false in specific cases
+	TemplateFolder               string            // If this is set, we will create
+	CreateFromTemplate           bool
+	Template                     []Template // These are any custom templates
+	CreateRouter                 bool       // Do we want to create the router. This should only be set to false in specific cases
+	CreateHandler                bool       // Do we want to create the handler. This should only be set to false in specific cases
+	CreateMiddleware             bool       // Do we want to create the middleware ( struct validation and auth ). This should only be set to false in specific cases
 	RouterTemplate               string
 	HandlerTemplate              string
 	ValidationMiddlewareTemplate string
 	AuthMiddlewareTemplate       string
 	PresenterTemplate            string
 
-	Template []Template // These are any custom templates
-
 	OverrideFiles bool // If we write the files to disk, and a file already exists, do we want to override the current files contents
 	WriteToDisk   bool // Will we write the files to disk
 }
 
 type Template struct {
-	NameFormat   string // This is the format of the file name eg: %s.middleware.go
-	OutPath      string // This is the output path, relative to where we are working from
-	Content      string // This is the template
-	Version      bool   // Does the template get a version
-	OverrideFile bool   // Do we override the file if it exists
+	Name    string // This is the name of the file
+	OutPath string // This is the output path, relative to where we are working from
+	Content string // This is the template
+	Package string
 }
 
 // FilepathSeparator will return the file path separator, it will generally return the filepath.Separator
@@ -205,6 +206,16 @@ func (c *Config) SetDefaults() {
 
 // SetupFolders will create all the folders required for the packages
 func (c *Config) SetupFolders() error {
+	if c.CreateFromTemplate {
+		for _, template := range c.Template {
+			err := createDir(template.OutPath, c.OutputDirPermissions)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	var err error
 	fmt.Println("Directory:", c.OutputDir)
 	err = createDir(c.OutputDir, c.OutputDirPermissions)
@@ -265,6 +276,14 @@ func (c *Config) Process() error {
 		return err
 	}
 
+	if c.CreateFromTemplate {
+		// We need to read all the templates
+		err = c.GetAllTemplates()
+		if err != nil {
+			return err
+		}
+	}
+
 	err = c.CreateAll(spec)
 	if err != nil {
 		return err
@@ -292,70 +311,82 @@ func (c *Config) CreateAll(defs []TypeSpec) error {
 		return err
 	}
 
-	ts := c.GetDefaultTypeSpec()
-	ts.Struct.APIName = "presenter"
-	ts.Package = "presenter"
-	file, errGen := ts.Generate(
-		c.PresenterTemplate,
-		c.getFullPath(
-			c.OutputDir,
-			c.Directories.PresenterDirectory,
-		),
-		"presenter.go",
-	)
-	if errGen != nil {
-		fmt.Println(errGen)
-		return errGen
-	}
-
-	if c.WriteToDisk {
-		create := false
-		if c.WriteToDisk {
-			create = true
-		}
-
-		if create {
-			err := os.WriteFile(
-				file.Path+file.Name,
-				[]byte(file.Content),
-				c.OutputDirPermissions,
-			)
-			if err != nil {
-				fmt.Println("Processing File Error:", file.Path, file.Name, err)
-				return err
-			}
-		}
-	} else {
-		// We do not want to write the file. So we are just going to print the content
-		fmt.Println(file.Content)
-	}
-	// We only want to create the auth if Auth is set
-	if c.Auth {
-		ts.Struct.APIName = "middleware"
-		ts.Package = "middleware"
-		file, err = ts.Generate(c.AuthMiddlewareTemplate,
+	if !c.CreateFromTemplate {
+		ts := c.GetDefaultTypeSpec()
+		ts.Struct.APIName = "presenter"
+		ts.Package = "presenter"
+		file, errGen := ts.Generate(
+			c.PresenterTemplate,
 			c.getFullPath(
 				c.OutputDir,
-				c.Directories.MiddlewareDirectory,
+				c.Directories.PresenterDirectory,
 			),
-			"middleware.auth.go",
+			"presenter.go",
 		)
-		if err != nil {
-			return err
+		if errGen != nil {
+			fmt.Println(errGen)
+			return errGen
 		}
+
 		if c.WriteToDisk {
-			err := os.WriteFile(
-				file.Path+file.Name,
-				[]byte(file.Content),
-				c.OutputDirPermissions,
-			)
-			if err != nil {
-				fmt.Println("Processing File Error:", file.Path, file.Name, err)
-				return err
+			create := false
+			if c.WriteToDisk {
+				create = true
+			}
+
+			if create {
+				err := os.WriteFile(
+					file.Path+file.Name,
+					[]byte(file.Content),
+					c.OutputDirPermissions,
+				)
+				if err != nil {
+					fmt.Println("Processing File Error:", file.Path, file.Name, err)
+					return err
+				}
 			}
 		} else {
 			// We do not want to write the file. So we are just going to print the content
 			fmt.Println(file.Content)
+		}
+		// We only want to create the auth if Auth is set
+		if c.Auth {
+			ts.Struct.APIName = "middleware"
+			ts.Package = "middleware"
+			file, err = ts.Generate(c.AuthMiddlewareTemplate,
+				c.getFullPath(
+					c.OutputDir,
+					c.Directories.MiddlewareDirectory,
+				),
+				"middleware.auth.go",
+			)
+			if err != nil {
+				return err
+			}
+			if c.WriteToDisk {
+				err := os.WriteFile(
+					file.Path+file.Name,
+					[]byte(file.Content),
+					c.OutputDirPermissions,
+				)
+				if err != nil {
+					fmt.Println("Processing File Error:", file.Path, file.Name, err)
+					return err
+				}
+			} else {
+				// We do not want to write the file. So we are just going to print the content
+				fmt.Println(file.Content)
+			}
+		}
+
+	} else {
+		for _, template := range c.Template {
+			if strings.Contains(strings.ToLower(template.Name), TemplateSingular) {
+				err2 := c.CreateFileFromTemplate(template)
+				if err2 != nil {
+					return err2
+				}
+			}
 		}
 	}
 
@@ -365,6 +396,7 @@ func (c *Config) CreateAll(defs []TypeSpec) error {
 			break
 		}
 		fmt.Println("Processing Struct:", def.Struct.Name)
+
 		all := make([]*File, 0)
 		all, err = def.GetAllFiles(c)
 		if err != nil {
@@ -394,6 +426,34 @@ func (c *Config) CreateAll(defs []TypeSpec) error {
 	return nil
 }
 
+func (c *Config) CreateFileFromTemplate(template Template) error {
+	ts := c.GetDefaultTypeSpec()
+	ts.Struct.APIName = template.Package
+	ts.Package = template.Package
+	file, err := ts.Generate(template.Content,
+		template.OutPath,
+		template.Name,
+	)
+	if err != nil {
+		return err
+	}
+	if c.WriteToDisk {
+		err := os.WriteFile(
+			template.OutPath+template.Name,
+			[]byte(file.Content),
+			c.OutputDirPermissions,
+		)
+		if err != nil {
+			fmt.Println("Processing File Error:", file.Path, file.Name, err)
+			return err
+		}
+	} else {
+		// We do not want to write the file. So we are just going to print the content
+		fmt.Println(file.Content)
+	}
+	return nil
+}
+
 func (file *File) Save(separator string, saveToDisk bool, filePerms os.FileMode) error {
 	if saveToDisk {
 		err := os.WriteFile(fmt.Sprintf("%s%s%s", file.Path, separator, file.Name), []byte(file.Content), filePerms)
@@ -417,4 +477,48 @@ func (c *Config) SetModule() {
 		c.Directories.IntermediaryPath = importPathDiff
 		c.Directories.Module = module
 	}
+}
+
+// GetAllTemplates This will recursively read all files and folders in `Config.TemplateFolder`
+// adding all the files to `Config.Template`
+// The file content will be the `Template.Content`
+// file name will be `Template.NameFormat` with `%s.` as a prefix
+// the file path will be the OutPath with `Config.TemplateFolder` being stripped from the path and replaced with `.`
+func (c *Config) GetAllTemplates() error {
+	packageRegex := regexp.MustCompile(`package (\w+)`)
+	if c.Template == nil {
+		c.Template = make([]Template, 0)
+	}
+	err := filepath.Walk(c.TemplateFolder,
+		func(path string, info os.FileInfo, err error) error {
+			fmt.Println(path)
+			if err != nil {
+				return err
+			}
+
+			if !info.IsDir() && strings.Contains(strings.ToLower(info.Name()), ".go.template") {
+				content, readErr := os.ReadFile(path)
+				if readErr != nil {
+					return readErr
+				}
+
+				matches := packageRegex.FindStringSubmatch(string(content))
+				path = strings.ReplaceAll(path, info.Name(), "")
+				template := Template{
+					Content: "//Package {{.Package}} code generated by team142\n" + string(content),
+					Name:    strings.ReplaceAll(info.Name(), ".template", ""),
+					OutPath: strings.ReplaceAll(path, c.TemplateFolder, "."),
+				}
+				if len(matches) > 0 {
+
+					template.Package = strings.Split(matches[0], "")[1]
+				}
+
+				c.Template = append(c.Template, template)
+			}
+
+			return nil
+		})
+
+	return err
 }

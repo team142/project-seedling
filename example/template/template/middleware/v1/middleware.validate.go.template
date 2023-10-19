@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"github.com/gofiber/fiber/v2"
+	basic "code-gen/example/template"
+	"code-gen/example/template/presenter/v1"
 )
 
 // Verify{{.Struct.Name}}Body will verify if the body passed is valid, setting "{{.Struct.Name}}" in fiber Locals to the {{.Struct.APIName}}

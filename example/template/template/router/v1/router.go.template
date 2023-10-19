@@ -3,6 +3,8 @@ package router
 import (
 	"database/sql"
 	"github.com/gofiber/fiber/v2"
+	"code-gen/example/template/handler/v1"
+	"code-gen/example/template/middleware/v1"
 )
 
 const (
