@@ -1,0 +1,78 @@
+package middleware
+
+import (
+	"database/sql"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/session"
+	"net/http"
+)
+
+var store *session.Store
+
+func AuthMiddleware(db *sql.DB, params []string) fiber.Handler {
+	//TODO: You may want to change this
+	if store == nil {
+		store = session.New()
+	}
+
+	/*
+    Users Table:
+        id (Primary Key) - An auto-incrementing unique identifier for each user.
+
+    Roles Table:
+        id (Primary Key) - An auto-incrementing unique identifier for each role.
+        role_name - The name of the role.
+        is_expired - A boolean field indicating if the role has expired.
+
+    Permissions Table:
+        id (Primary Key) - An auto-incrementing unique identifier for each permission.
+        permission_name - The name of the permission.
+        is_expired - A boolean field indicating if the permission has expired.
+	*/
+
+	return func(c *fiber.Ctx) error {
+		var userId string
+
+		// We determine if there is an active session
+		sess, err := store.Get(c)
+		if err != nil {
+			c.Status(http.StatusForbidden)
+			return c.Send(nil)
+		}
+
+		// We determine if there is an active session
+		userId = sess.Get("user_id").(string)
+		if userId == "" {
+			c.Status(http.StatusForbidden)
+			return c.Send(nil)
+		}
+
+		if params == nil {
+			return c.Next()
+		}
+		exec, err := db.Exec({{.Backtick}}SELECT u.id AS user_id, r.role_name
+		FROM users u
+		JOIN user_roles ur ON u.id = ur.user_id
+		JOIN roles r ON ur.role_id = r.id
+		WHERE u.id = ? and r.role_name IN (?)
+		AND ur.is_expired = false
+		AND r.is_expired = false
+		{{.Backtick}}, userId, params)
+		if err != nil {
+			//TODO: LOG THIS
+			c.Status(http.StatusInternalServerError)
+			return c.Send(nil)
+		}
+		affected, err := exec.RowsAffected()
+		if err != nil {
+			//TODO: LOG THIS
+			c.Status(http.StatusInternalServerError)
+			return c.Send(nil)
+		}
+		if affected > 0 {
+			return c.Next()
+		}
+		c.Status(http.StatusUnauthorized)
+		return c.Send(nil)
+	}
+}

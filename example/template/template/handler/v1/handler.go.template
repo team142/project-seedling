@@ -1,0 +1,384 @@
+package handler
+{{$backtick := "`"}}
+{{$coreStruct := .}}
+{{$struct := .Struct}}
+
+import (
+	"{{$struct.PackageImportPath}}"
+	"{{$struct.PresenterImportPath}}"
+	"database/sql"
+	"github.com/gofiber/fiber/v2"{{if eq .PrimaryKeyCount 1}}
+	"strconv"
+	"strings"{{end}}
+)
+
+
+/*
+	{{ printf "%+v" . }}
+*/
+
+/*
+	We use the *sql.DB, although you can change this to *sql.TX if your process requires a transaction
+	{{ . }}
+*/
+
+// {{$struct.Name}}Interface is the core interface required for the functions to operate
+// We use a separate struct interface, because we want to allow easy customisation and extension.
+// You can easily refactor all the interfaces to be the same "StructInterface"
+type {{$struct.Name}}Interface interface {
+	// GetMultiple will get {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} by the parameters passed in the request
+	// Returning error, []{{$struct.Name}}s, limit, nextId, total
+	GetMultiple(db *sql.DB, params map[string]string) (error, []{{$struct.Package}}.{{$struct.Name}}, int, int, int64)
+
+	// Delete will delete {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} by the data passed in the body
+	Delete(db *sql.DB) error
+
+	// Save will update or create {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}}
+	// if override is passed, the update will update every field.
+	// if the return bool is true, it means the {{$struct.Name}} was created
+	// if the return bool is false, it means the {{$struct.Name}} was updated/overridden
+	Save(db *sql.DB, override bool) (error, bool)
+
+	// Validate will validate if the content is valid, returning nil if valid
+	Validate() error
+}
+
+// {{$struct.Name}}PrimaryKeys is a struct which represents all the primary keys for {{$struct.Package}}.{{$struct.Name}}
+type {{$struct.Name}}PrimaryKeys struct { {{ range .PrimaryKeys }}
+	{{.Name}} {{.Type}} {{$backtick}}json:"{{.APIName}},omitempty"{{$backtick}}{{ end }}
+}
+
+
+// GetMultiple{{$struct.Name}}s  get multiple {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} filter by the query params
+// @Summary          get multiple {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} filter by the query params
+// @Description      Get multiple {{$struct.APIName}}s based on the query params
+// @Tags             {{$struct.Name}}
+// @Accept           json,text/xml
+// @Produce          json
+// @Success          200  {object} presenter.DataArraySuccess{data=[]{{$struct.Package}}.{{$struct.Name}}}
+// @Success          204  {object} presenter.DataArraySuccess{data=[]{{$struct.Package}}.{{$struct.Name}}}
+// @Failure          400  {object} presenter.DataError{data=string}
+// @Failure          401
+// @Failure          403
+// @Failure          500  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}
+// @Router           {{.APIPath}}{{$struct.APIName}} [get]
+// @Param            limit 			query      int     	false  "Limit" default(100){{ range .Fields }}
+// @Param            {{.APIName}} 			query      {{.Type}}     	false  "{{.Name}}"{{ end }}
+func GetMultiple{{$struct.Name}}s(db *sql.DB) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		{{$struct.VarName}} := get{{$struct.Name}}(c)
+
+		// STANDARD
+		var err error
+		var limit int
+		var total int64
+
+		// STRUCT SPECIFIC
+		var {{$struct.VarName}}s = make([]{{$struct.Package}}.{{$struct.Name}}, 0, 0)
+		var nextId int
+
+		// We are going to get multiple {{$struct.VarName}}s and the required fields for the response
+		if err, {{$struct.VarName}}s, limit, nextId, total = {{$struct.VarName}}.GetMultiple(
+			db,
+			c.AllParams(),
+		); err != nil {
+			c.Status(fiber.StatusInternalServerError)
+			return c.JSON(
+				presenter.DataError{
+					Error: err,
+				},
+			)
+		} else {
+			first := {{$struct.Package}}.{{$struct.Name}}{}
+			if len({{$struct.VarName}}s) > 0 {
+				first = {{$struct.VarName}}s[0]
+			} else {
+				c.Status(fiber.StatusNoContent)
+				return c.JSON(
+					presenter.DataArraySuccess{
+						Data:        {{$struct.VarName}}s,
+						Limit:       limit,
+						ReturnValue: len({{$struct.VarName}}s),
+						Total:       total,
+					},
+				)
+			}
+			c.Status(fiber.StatusOK)
+			return c.JSON(
+				presenter.DataArraySuccess{
+					Data:        {{$struct.VarName}}s,
+					Limit:       limit,
+					ReturnValue: len({{$struct.VarName}}s),
+					From:        first.Id,
+					Next:        nextId,
+					Total:       total,
+				},
+			)
+		}
+	}
+}
+
+{{if eq .PrimaryKeyCount 1}}
+{{ range .PrimaryKeys }}
+// Get{{$struct.Name}}ByPrimaryKey get a single {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} by the {{$backtick}}{{$struct.Package}}.{{$struct.Name}}.{{.Name}}{{$backtick}}
+// @Summary          This will get a single {{$backtick}}{{$struct.Package}}.{{$struct.Name}}{{$backtick}} filtering using the {{$backtick}}{{$struct.Name}}.{{.Name}}{{$backtick}}
+// @Description      Get a single {{$struct.Name}}
+// @Tags             {{$struct.Name}}
+// @Accept           json,text/xml
+// @Produce          json
+// @Success          200  {object} presenter.Data{data={{$struct.Package}}.{{$struct.Name}}}
+// @Success          204  {object} presenter.DataError{data=string}
+// @Failure          400  {object} presenter.DataError{data=string}
+// @Failure          401
+// @Failure          403
+// @Failure          500  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}
+// @Router           {{$coreStruct.APIPath}}{{$struct.APIName}}/{{ printf "{%s}" .APIName}} [get]
+// @Param         	 {{.APIName}}		path      {{.Type}}  true  "{{.Name}}"
+func Get{{$struct.Name}}ByPrimaryKey(db *sql.DB) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var err error
+		{{$struct.VarName}} := get{{$struct.Name}}(c)
+
+		var {{$struct.VarName}}s []{{$struct.Package}}.{{$struct.Name}}
+		if err, {{$struct.VarName}}s, _, _, _ = {{$struct.VarName}}.GetMultiple(
+			db,
+			map[string]string{"{{.APIName}}": c.Params("id", "")},
+		); err != nil {
+			if strings.Contains(err.Error(), "not found") {
+				c.Status(fiber.StatusNoContent)
+				return c.JSON(
+					presenter.DataError{
+						Message: "not found",
+						Data:    {{$struct.VarName}},
+						Error:   err,
+					},
+				)
+			}
+
+			c.Status(fiber.StatusInternalServerError)
+			return c.JSON(
+				presenter.DataError{
+					Message: "error retrieving requested {{$struct.Name}}",
+					Data:    {{$struct.VarName}},
+					Error:   err,
+				},
+			)
+		} else {
+			if len({{$struct.VarName}}s) > 0 {
+				c.Status(fiber.StatusAccepted)
+				return c.JSON(
+					presenter.DataSuccess{
+						Data: {{$struct.VarName}}s[0],
+					},
+				)
+			} else {
+				c.Status(fiber.StatusNoContent)
+				return c.JSON(
+					presenter.DataSuccess{},
+				)
+			}
+		}
+	}
+}
+{{end}}
+{{end}}
+// Trace{{$struct.Name}} trace a {{$struct.APIName}} request
+// @Summary          Validate is the {{$struct.APIName}} sent in the body is accepted by the server
+// @Description      Trace for {{$struct.Name}}
+// @Tags             {{$struct.Name}}
+// @Accept           json,text/xml
+// @Produce          json
+// @Success          202  {object} presenter.DataSuccess{data={{$struct.Package}}.{{$struct.Name}}}
+// @Failure          400  {object} presenter.DataError{data=string}
+// @Failure          401
+// @Failure          403
+// @Failure          406  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}
+// @Router           {{.APIPath}}{{$struct.APIName}} [trace]
+func Trace{{$struct.Name}}() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var err error
+		{{$struct.VarName}} := get{{$struct.Name}}(c)
+
+		if err = {{$struct.VarName}}.Validate(); err != nil {
+			c.Status(fiber.StatusNotAcceptable)
+			return c.JSON(
+				presenter.DataError{
+					Message: err.Error(),
+					Data:    {{$struct.VarName}},
+					Error:   err,
+				},
+			)
+		}
+
+		c.Status(fiber.StatusAccepted)
+		return c.JSON(
+			presenter.DataSuccess{
+				Data: {{$struct.VarName}},
+			},
+		)
+	}
+}
+
+// Save{{$struct.Name}} trace a {{$struct.APIName}} request
+// @Summary          Save a {{$struct.APIName}}
+// @Description      This will create a new {{$struct.Name}} or replace/update a representation of the {{$struct.Name}} with the request payload.
+// @Tags             {{$struct.Name}}
+// @Accept           json,text/xml
+// @Produce          json
+// @Success          202  {object} presenter.DataSuccess{data={{$struct.Package}}.{{$struct.Name}}}
+// @Failure          400  {object} presenter.DataError{data=string}
+// @Failure          401
+// @Failure          403
+// @Failure          406  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}
+// @Router           {{.APIPath}}{{$struct.APIName}} [put, post]
+func Save{{$struct.Name}}(db *sql.DB, override bool) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var err error
+		{{$struct.VarName}} := get{{$struct.Name}}(c)
+
+		var created bool
+		err, created = {{$struct.VarName}}.Save(db, override)
+		if err != nil {
+			c.Status(fiber.StatusNotAcceptable)
+			return c.JSON(
+				presenter.DataError{
+					Message: "invalid data",
+					Data:    {{$struct.VarName}},
+					Error:   err,
+				},
+			)
+		}
+
+		if created {
+			c.Status(fiber.StatusCreated)
+		} else {
+			c.Status(fiber.StatusOK)
+		}
+
+		return c.JSON(
+			presenter.DataSuccess{
+				Data: {{$struct.VarName}},
+			},
+		)
+	}
+}
+
+// Delete{{$struct.Name}} trace a {{$struct.APIName}} request
+// @Summary          PUT a {{$struct.APIName}}
+// @Description      This will delete {{$struct.Name}} or replace a representation of the {{$struct.Name}} with the request payload.
+// @Tags             {{$struct.Name}}
+// @Accept           json,text/xml
+// @Produce          json
+// @Success          202  ""
+// @Failure          400  {object} presenter.DataError{data=string}
+// @Failure          401
+// @Failure          403
+// @Failure          406  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}
+// @Router           {{.APIPath}}{{$struct.APIName}} [delete]
+func Delete{{$struct.Name}}(db *sql.DB) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var err error
+		{{$struct.VarName}} := get{{$struct.Name}}(c)
+
+		err = {{$struct.VarName}}.Delete(db)
+		if err != nil {
+			c.Status(fiber.StatusInternalServerError)
+			return c.JSON(
+				presenter.DataError{
+					Message: "internal database error",
+					Data:    {{$struct.VarName}},
+					Error:   err,
+				},
+			)
+		}
+
+		c.Status(fiber.StatusOK)
+		return c.Send(nil)
+	}
+}
+{{if eq .PrimaryKeyCount 1}}
+{{ range .PrimaryKeys }}
+// Delete{{$struct.Name}}ByPrimaryKey deletes a {{$struct.APIName}}
+// @Summary          DELETE a {{$struct.APIName}}
+// @Description      This will delete {{$struct.Name}} or replace a representation of the {{$struct.Name}} with the request payload.
+// @Tags             {{$struct.Name}}
+// @Accept           json,text/xml
+// @Produce          json
+// @Success          202  ""
+// @Failure          400  {object} presenter.DataError{data=string}
+// @Failure          401
+// @Failure          403
+// @Failure          406  {object} presenter.DataError{data={{$struct.Package}}.{{$struct.Name}}}
+// @Router           {{$coreStruct.APIPath}}{{$struct.APIName}}/{{printf "{%s}" .APIName}} [delete]
+// @Param            {{.APIName}} 			query      {{.Type}}     	false  "{{.Name}}"
+func Delete{{$struct.Name}}ByPrimaryKey(db *sql.DB) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var err error
+		var {{$struct.VarName}} {{$struct.Name}}Interface
+		{{$struct.VarName}}Core := &{{$struct.Package}}.{{$struct.Name}}{}
+		{{if eq .Type "int"}}
+		// This will only do this if the PK is an INT
+		{{$struct.VarName}}Core.{{.Name}}, err = strconv.Atoi(c.Params("id", ""))
+		if err != nil {
+			c.Status(fiber.StatusBadRequest)
+			return c.JSON(
+				presenter.DataError{
+					Message: "bad id",
+					Error:   err,
+				},
+			)
+		}{{else}}
+		// This will only be done if the primary key is NOT int
+		{{$struct.VarName}}Core.{{.Name}} := c.Params("id", "")
+		if {{$struct.VarName}}.{{.Name}} == "" {
+			c.Status(fiber.StatusBadRequest)
+			return c.JSON(
+				presenter.DataError{
+					Message: "bad id",
+					Error:   err,
+				},
+			)
+		}
+		{{end}}
+		{{$struct.VarName}} = {{$struct.VarName}}Core
+		err = {{$struct.VarName}}.Delete(db)
+		if err != nil {
+			c.Status(fiber.StatusInternalServerError)
+			return c.JSON(
+				presenter.DataError{
+					Message: "internal database error",
+					Data:    {{$struct.VarName}},
+					Error:   err,
+				},
+			)
+		}
+
+		c.Status(fiber.StatusOK)
+		return c.Send(nil)
+	}
+}
+{{ end }}
+{{ end }}
+
+// {{$struct.Name}}Options
+// @Summary          OPTIONS
+// @Description      This will return an options for {{.APIPath}}{{$struct.APIName}}
+// @Tags             User
+// @Success          200  ""
+// @Failure          401
+// @Failure          403
+// @Router           {{.APIPath}}{{$struct.APIName}} [options]
+func UserOptions() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		c.Set("Allow", "OPTIONS, GET, POST, PUT, DELETE, TRACE")
+		return c.Send(nil)
+	}
+}
+
+func get{{$struct.Name}}(c *fiber.Ctx) {{$struct.Name}}Interface {
+	{{$struct.VarName}}Local := c.Locals("{{$struct.Name}}")
+	if {{$struct.VarName}}Local == nil {
+		return nil
+	}
+	return {{$struct.VarName}}Local.(*{{$struct.Package}}.{{$struct.Name}})
+}
