@@ -1,4 +1,4 @@
-//go:generate go run ../../cmd/api/main.go -i user.go -t template
+//go:generate go run ../../cmd/template/v1/main.go -i user.go -t template
 package basic
 
 // User is a basic user of the system

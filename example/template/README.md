@@ -1,17 +1,6 @@
-This example is a simple example.
+This is an example how to use templates
 
-We will have simple ONE struct
-```go
-type User struct {
-	Id        int
-	FirstName string
-	LastName  string
-}
-```
+Create a folder with templates, and pass the folder name to the generator.
+`//go:generate github.com/team142/project-seedling/template/v1 -t template`
 
-This should generate a route and handler for each operation.
-The objective is to allow for CRUD operations on the `User` struct ( Create, Read, Update, Delete )
-* GET ( Read )
-* POST ( Insert/Update )
-* PUT ( Insert/Override )
-* DELETE ( Delete )
+The engine will execute using the template directory structure and names.

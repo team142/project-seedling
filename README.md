@@ -40,14 +40,14 @@ type User struct {
 2. [ ] YAML to struct
    1. YAML to DB
    2. YAML to DB changes
-3. [ ] Struct Core Functions
-4. [ ] Struct API Functions
-5. [ ] API Client - This will generate a **SDK** to use the API's
-   1. GO
+3. [X] Generate go files from templates 
+   1. [ ] Example: Struct Core Functions
+   2. [X] Example: Struct API Functions
+   3. [ ] Example: API Client - This will generate a **SDK** to use the API's
+      1. GO
 
 
 ##  Ecosystem Goals
-
 
 
 ##  Project Goals
@@ -78,13 +78,19 @@ The objective is to allow for CRUD operations on the struct ( Create, Read, Upda
 There are a couple simple ways for one to use the project
 
 ```
-//go:generate github.com/team142/project-seedling/cmd/generator -i user.go
+//go:generate github.com/team142/project-seedling/template/v1 -i user.go
+```
+
+Using if you provide your own templates
+```
+//go:generate github.com/team142/project-seedling/template/v1 -template template
 ```
 
 A More complex 
 
 ```
-//go:generate github.com/team142/project-seedling/cmd/generator -i user.go -version v1 -api fiber -s User,UserRole -o ../../
+//go:generate github.com/team142/project-seedling/template/v1 -i user.go -version v1 -api fiber -s User,UserRole -o ../../
 ```
 
 # Example
+Example are in the `example` folder

@@ -16,10 +16,6 @@ var (
 	ErrorNoStructName   = errors.New("no struct name")
 )
 
-const (
-	TemplateSingular = "singular"
-)
-
 type StructSpec struct {
 	APIName string // snake_case
 	Name    string // PascalCase
@@ -85,7 +81,7 @@ func (ts *TypeSpec) GetAllFiles(config *Config) ([]*File, error) {
 	// If we are creating everything from a template
 	if config.CreateFromTemplate {
 		for _, t := range config.Template {
-			if !strings.Contains(strings.ToLower(t.Name), TemplateSingular) {
+			if !strings.Contains(strings.ToLower(t.Name), config.TemplateSingleton) {
 				ts.Package = t.Package
 				generate, err := ts.Generate(
 					t.Content,
