@@ -1,8 +1,8 @@
 package main
 
 import (
-	"code-gen/pkg/generator"
-	"code-gen/pkg/module"
+	"code-gen/pkg/generator/v1"
+	"code-gen/pkg/module/v1"
 	"flag"
 )
 
@@ -28,7 +28,7 @@ func main() {
 		Structs:          nil,
 		Auth:             true,
 		FileName:         fileName,
-		DiscoverFunction: generator.FiberGenerator,
+		DiscoverFunction: generator.TemplateGenerator,
 		WriteToDisk:      true,
 		OverrideFiles:    true,
 	}
