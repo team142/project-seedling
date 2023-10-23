@@ -67,6 +67,7 @@ type Config struct {
 
 	OverrideFiles bool // If we write the files to disk, and a file already exists, do we want to override the current files contents
 	WriteToDisk   bool // Will we write the files to disk
+
 }
 
 type Template struct {

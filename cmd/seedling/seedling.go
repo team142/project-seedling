@@ -10,10 +10,10 @@ import (
 )
 
 var (
+	//structs           = flag.String("s", "", "specify structs to generate (comma seperated), the default is every struct in the file")
+	//verbose           = flag.String("v", "", "verbose")
 	input             = flag.String("i", "", "input file")
-	structs           = flag.String("s", "", "specify structs to generate (comma seperated), the default is every struct in the file")
 	override          = flag.Bool("o", true, "do you want to override existing files")
-	verbose           = flag.String("v", "", "verbose")
 	templateFolder    = flag.String("t", "", "this is the template folder name")
 	templateExtension = flag.String("extension", ".template", "this is the extension if templates are used")
 	templateSingleton = flag.String("singleton", "singular", "if this word is in the name of a file, it will not be used while generating structs")
