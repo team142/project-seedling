@@ -3,6 +3,7 @@ package router
 import (
 	"database/sql"
 	"github.com/gofiber/fiber/v2"
+	"github.com/team142/project-seedling/example/end/fiber/handler/v1"
 	"github.com/team142/project-seedling/example/end/fiber/middleware"
 )
 

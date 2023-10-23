@@ -2,6 +2,7 @@ package generator
 
 import (
 	"fmt"
+	"github.com/team142/project-seedling/pkg/module/v1"
 )
 
 func TemplateGenerator(conf *module.Config, spec []module.TypeSpec) (error, []module.File) {

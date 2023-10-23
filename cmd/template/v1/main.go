@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"github.com/team142/project-seedling/pkg/generator/v1"
+	"github.com/team142/project-seedling/pkg/module/v1"
 )
 
 var (
