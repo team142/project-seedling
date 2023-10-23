@@ -86,7 +86,7 @@ func (ts *TypeSpec) GetAllFiles(config *Config) ([]*File, error) {
 				generate, err := ts.Generate(
 					t.Content,
 					t.OutPath,
-					fmt.Sprintf("%s.%s", ts.Struct.APIName, t.Name),
+					fmt.Sprintf("%s%s", ts.Struct.APIName, t.Name),
 				)
 				if err != nil {
 					return nil, err
