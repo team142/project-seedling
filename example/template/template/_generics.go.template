@@ -1,0 +1,45 @@
+package template
+
+{{$struct := .Struct}}
+
+import "database/sql"
+
+func (u *{{$struct.Name}}) GetMultiple(db *sql.DB, params map[string]string) (error, []{{$struct.Name}}, int, int, int64) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u *{{$struct.Name}}) Delete(db *sql.DB) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u *{{$struct.Name}}) Save(db *sql.DB, override bool) (error, bool) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u *{{$struct.Name}}) Validate() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u *{{$struct.Name}}) GetDeleteStatement() (error, string) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u *{{$struct.Name}}) GetSelectStatement(params map[string]string) (error, string) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u *{{$struct.Name}}) GetUpdateStatement() (error, string) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (u *{{$struct.Name}}) GetCreateStatement() (error, string) {
+	//TODO implement me
+	panic("implement me")
+}

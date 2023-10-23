@@ -5,7 +5,7 @@ package handler
 
 import (
 	"{{$struct.PackageImportPath}}"
-	"{{$struct.PresenterImportPath}}"
+	"{{$struct.PackageImportPath}}/fiber/presenter/v1"
 	"database/sql"
 	"github.com/gofiber/fiber/v2"{{if eq .PrimaryKeyCount 1}}
 	"strconv"

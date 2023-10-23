@@ -1,7 +1,5 @@
-template/router
-template/presenter
-template/middleware
-template/handler
+template/fiber
+template/user.default.go
 
 basic/router
 basic/presenter
