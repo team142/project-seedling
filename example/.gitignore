@@ -2,3 +2,8 @@ template/router
 template/presenter
 template/middleware
 template/handler
+
+basic/router
+basic/presenter
+basic/middleware
+basic/handler
