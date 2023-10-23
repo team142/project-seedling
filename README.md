@@ -78,18 +78,18 @@ The objective is to allow for CRUD operations on the struct ( Create, Read, Upda
 There are a couple simple ways for one to use the project
 
 ```
-//go:generate github.com/team142/project-seedling/template -i user.go
+//go:generate github.com/team142/project-seedling -i user.go
 ```
 
 Using if you provide your own templates
 ```
-//go:generate github.com/team142/project-seedling/template -template template
+//go:generate github.com/team142/project-seedling -template template
 ```
 
 A More complex 
 
 ```
-//go:generate github.com/team142/project-seedling/template -i user.go -version v1 -api fiber -s User,UserRole -o ../../
+//go:generate github.com/team142/project-seedling -i user.go -version v1 -api fiber -s User,UserRole -o ../../
 ```
 
 # Example

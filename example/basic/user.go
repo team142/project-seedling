@@ -1,4 +1,4 @@
-//go:generate go run ../../cmd/template -i user.go -version v1
+//go:generate go run ../../ -i user.go -version v1
 package basic
 
 // User is a basic user of the system
