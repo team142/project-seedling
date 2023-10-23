@@ -56,7 +56,11 @@ func executeForFile(fileName string) error {
 		FileName:         fileName,
 		DiscoverFunction: generator.TemplateGenerator,
 		WriteToDisk:      true,
-		OverrideFiles:    *override,
+		OverrideFiles:    true,
+	}
+
+	if override != nil {
+		conf.OverrideFiles = *override
 	}
 
 	if templateFolder != nil && *templateFolder != "" {
