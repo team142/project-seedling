@@ -1,7 +1,6 @@
 package generator
 
 import (
-	"code-gen/pkg/module/v1"
 	"fmt"
 )
 

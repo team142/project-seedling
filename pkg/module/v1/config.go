@@ -1,8 +1,8 @@
 package module
 
 import (
-	"code-gen/pkg/module/templates"
 	"fmt"
+	"github.com/team142/project-seedling/pkg/module/templates"
 	"os"
 	"path/filepath"
 	"regexp"

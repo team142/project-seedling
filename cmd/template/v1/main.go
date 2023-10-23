@@ -1,8 +1,6 @@
 package main
 
 import (
-	"code-gen/pkg/generator/v1"
-	"code-gen/pkg/module/v1"
 	"flag"
 )
 

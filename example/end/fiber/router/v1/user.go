@@ -1,10 +1,9 @@
 package router
 
 import (
-	"code-gen/example/end/fiber/handler/v1"
-	"code-gen/example/end/fiber/middleware"
 	"database/sql"
 	"github.com/gofiber/fiber/v2"
+	"github.com/team142/project-seedling/example/end/fiber/middleware"
 )
 
 func UserRoutes(api fiber.Router, db *sql.DB) {

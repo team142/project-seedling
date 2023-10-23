@@ -1,10 +1,9 @@
 package handler
 
 import (
-	end "code-gen/example/end/fiber"
-	"code-gen/example/end/fiber/presenter/v1"
 	"database/sql"
 	"github.com/gofiber/fiber/v2"
+	end "github.com/team142/project-seedling/example/end/fiber"
 	"strconv"
 	"strings"
 )

@@ -1,9 +1,8 @@
 package middleware
 
 import (
-	end "code-gen/example/end/fiber"
-	"code-gen/example/end/fiber/presenter/v1"
 	"github.com/gofiber/fiber/v2"
+	end "github.com/team142/project-seedling/example/end/fiber"
 )
 
 // VerifyUserBody will verify if the body passed is valid, setting "User" in fiber Locals to the user

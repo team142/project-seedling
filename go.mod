@@ -1,4 +1,4 @@
-module code-gen
+module github.com/team142/project-seedling
 
 go 1.20
 
