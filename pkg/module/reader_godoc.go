@@ -25,6 +25,7 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 	config.SetModule()
 
 	packageImportPath := config.Directories.Module + "/" + config.Directories.IntermediaryPath
+	// TODO: This should come from a config file
 	middlewareImportPath := config.getPathWithSeparator(packageImportPath, config.Directories.MiddlewareDirectory, "/")
 	presenterImportPath := config.getPathWithSeparator(packageImportPath, config.Directories.PresenterDirectory, "/")
 	handlerImportPath := config.getPathWithSeparator(packageImportPath, config.Directories.HandlerDirectory, "/")
@@ -77,7 +78,7 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 					fmt.Println("Comments:", spec.Comment.Text())
 					fmt.Println("Fields:")
 					for _, field := range s.Fields.List {
-						fn := ""
+						fn := "unknown"
 						if len(field.Names) > 0 {
 							fn = field.Names[0].Name
 						}
@@ -86,10 +87,15 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 							Field: field,
 							Name:  toPascalCase(fn),
 							// TODO: read the tags
-							APIName:    toSnakeCase(fn),
-							VarName:    toCamelCase(fn),
-							PrimaryKey: commentContains(field.Doc.Text(), "#pk\n"),
-							Tag:        reflect.StructTag(strings.Replace(field.Tag.Value, "`", "", -1)),
+							APIName: toSnakeCase(fn),
+							VarName: toCamelCase(fn),
+						}
+						if field.Doc != nil {
+							tempField.PrimaryKey = commentContains(field.Doc.Text(), "#pk\n")
+						}
+
+						if field.Tag != nil {
+							tempField.Tag = reflect.StructTag(strings.Replace(field.Tag.Value, "`", "", -1))
 						}
 
 						fmt.Println("-----------------------------", fn)
@@ -110,10 +116,14 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 						fmt.Println("\t-",
 							field.Names[0],
 							field.Type,
-							field.Tag.Value,
 							strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
 							strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
 						)
+						if field.Tag != nil {
+							fmt.Println("\t- TAG: ",
+								field.Tag.Value,
+							)
+						}
 
 						fmt.Println("-----------------------------")
 

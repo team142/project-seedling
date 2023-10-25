@@ -12,6 +12,7 @@ type User struct {
 	FirstName string `json:"first_name,omitempty"` // FirstName fn
 	LastName  string `json:"last_name,omitempty"`  // LastName ln
 	CreatedAt string `json:"-"`
+	NoJson    string
 }
 
 // UserIgnored should be ignored during the generation
