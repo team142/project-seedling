@@ -62,82 +62,92 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 					ts.PrimaryKeys = make([]Field, 0)
 					ts.PrimaryKeyCount = 0
 					ts.Struct = StructSpec{
-						APIName:              toSnakeCase(spec.Name.String()),
-						Name:                 toPascalCase(spec.Name.String()),
-						VarName:              toCamelCase(spec.Name.String()),
+						APIName:              "unknown",
+						Name:                 "unknown",
+						VarName:              "unknown",
 						Package:              pkg.Name,
 						PackageImportPath:    packageImportPath,
 						MiddlewareImportPath: middlewareImportPath,
 						PresenterImportPath:  presenterImportPath,
 						HandlerImportPath:    handlerImportPath,
 					}
-					ts.Auth = commentContains(spec.Comment.Text(), "#noauth")
+
+					if spec.Name != nil {
+						ts.Struct.APIName = toSnakeCase(spec.Name.String())
+						ts.Struct.Name = toPascalCase(spec.Name.String())
+						ts.Struct.VarName = toCamelCase(spec.Name.String())
+					}
 
 					//structs = append(structs, spec)
 					fmt.Println("Struct:", spec.Name)
-					fmt.Println("Comments:", spec.Comment.Text())
+					if spec.Comment != nil {
+						ts.Auth = commentContains(spec.Comment.Text(), "#noauth")
+						fmt.Println("Comments:", spec.Comment.Text())
+					}
 					fmt.Println("Fields:")
-					for _, field := range s.Fields.List {
-						fn := "unknown"
-						if len(field.Names) > 0 {
-							fn = field.Names[0].Name
-						}
-
-						tempField := Field{
-							Field: field,
-							Name:  toPascalCase(fn),
-							// TODO: read the tags
-							APIName: toSnakeCase(fn),
-							VarName: toCamelCase(fn),
-						}
-						if field.Doc != nil {
-							tempField.PrimaryKey = commentContains(field.Doc.Text(), "#pk\n")
-						}
-
-						if field.Tag != nil {
-							tempField.Tag = reflect.StructTag(strings.Replace(field.Tag.Value, "`", "", -1))
-						}
-
-						fmt.Println("-----------------------------", fn)
-						fmt.Println(field.Doc.Text())
-						fmt.Println("\t- Tag: ", tempField.Tag)
-
-						if val, ok := tempField.Tag.Lookup("json"); ok {
-							if val == "-" {
-								tempField.Ignore = true
+					if s.Fields != nil {
+						for _, field := range s.Fields.List {
+							fn := "unknown"
+							if len(field.Names) > 0 {
+								fn = field.Names[0].Name
 							}
-							fmt.Println("\t\t- json: ", val)
-						} else {
-							fmt.Println("\t\t-", val, ok, tempField.Tag)
-						}
 
-						fmt.Printf("\t- Ignored: %v \n", tempField.Ignore)
-						fmt.Printf("\t- %s \n", field.Type)
-						fmt.Println("\t-",
-							field.Names[0],
-							field.Type,
-							strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
-							strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
-						)
-						if field.Tag != nil {
-							fmt.Println("\t- TAG: ",
-								field.Tag.Value,
+							tempField := Field{
+								Field: field,
+								Name:  toPascalCase(fn),
+								// TODO: read the tags
+								APIName: toSnakeCase(fn),
+								VarName: toCamelCase(fn),
+							}
+
+							if field.Doc != nil {
+								tempField.PrimaryKey = commentContains(field.Doc.Text(), "#pk\n")
+							}
+
+							if field.Tag != nil {
+								tempField.Tag = reflect.StructTag(strings.Replace(field.Tag.Value, "`", "", -1))
+							}
+
+							fmt.Println("-----------------------------", fn)
+							fmt.Println(field.Doc.Text())
+							fmt.Println("\t- Tag: ", tempField.Tag)
+
+							if val, ok := tempField.Tag.Lookup("json"); ok {
+								if val == "-" {
+									tempField.Ignore = true
+								}
+								fmt.Println("\t\t- json: ", val)
+							} else {
+								fmt.Println("\t\t-", val, ok, tempField.Tag)
+							}
+
+							fmt.Printf("\t- Ignored: %v \n", tempField.Ignore)
+							fmt.Printf("\t- %s \n", field.Type)
+							fmt.Println("\t-",
+								field.Names[0],
+								field.Type,
+								strings.Replace(field.Comment.Text(), "\n", "\\n", -1),
+								strings.Replace(field.Doc.Text(), "\n", "\\n", -1),
 							)
+							if field.Tag != nil {
+								fmt.Println("\t- TAG: ",
+									field.Tag.Value,
+								)
+							}
+
+							fmt.Println("-----------------------------")
+
+							tempField.Type = fmt.Sprint(field.Type)
+
+							if !tempField.Ignore {
+								ts.Fields = append(ts.Fields, tempField)
+							}
+
+							if tempField.PrimaryKey {
+								ts.PrimaryKeys = append(ts.PrimaryKeys, tempField)
+								ts.PrimaryKeyCount++
+							}
 						}
-
-						fmt.Println("-----------------------------")
-
-						tempField.Type = fmt.Sprint(field.Type)
-
-						if !tempField.Ignore {
-							ts.Fields = append(ts.Fields, tempField)
-						}
-
-						if tempField.PrimaryKey {
-							ts.PrimaryKeys = append(ts.PrimaryKeys, tempField)
-							ts.PrimaryKeyCount++
-						}
-
 					}
 
 					types = append(types, ts)
