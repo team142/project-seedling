@@ -14,6 +14,7 @@ var (
 	//verbose           = flag.String("v", "", "verbose")
 	input             = flag.String("i", "", "input file")
 	override          = flag.Bool("override", true, "do you want to override existing files")
+	auth              = flag.Bool("auth", true, "do you want to override existing files")
 	templateFolder    = flag.String("t", "", "this is the template folder name")
 	templateExtension = flag.String("extension", ".template", "this is the extension if templates are used")
 	templateSingleton = flag.String("singleton", "singular", "if this word is in the name of a file, it will not be used while generating structs")
@@ -80,6 +81,10 @@ func executeForFile(fileName string) error {
 
 	if templateExtension != nil && *templateExtension != "" {
 		conf.TemplateExtension = *templateExtension
+	}
+
+	if auth != nil {
+		conf.Auth = *auth
 	}
 
 	err := conf.Process()
