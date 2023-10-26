@@ -21,7 +21,7 @@ func GoDocReader(config *Config) (error, []TypeSpec) {
 		return err, nil
 	}
 
-	// We make sure the module information is setup
+	// We make sure the module information is setups
 	config.SetModule()
 
 	packageImportPath := config.Directories.Module + "/" + config.Directories.IntermediaryPath
